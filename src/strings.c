@@ -543,6 +543,9 @@ const xmlChar xmlSecXPath2FilterUnion[]         = "union";
 const xmlChar xmlSecNameXPointer[]              = "xpointer";
 const xmlChar xmlSecNodeXPointer[]              = "XPointer";
 
+const xmlChar xmlSecNameRelationship[] = "relationship";
+const xmlChar xmlSecHrefRelationship[] = "http://schemas.openxmlformats.org/package/2006/RelationshipTransform";
+
 /*************************************************************************
  *
  * Xslt strings
