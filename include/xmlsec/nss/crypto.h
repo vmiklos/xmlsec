@@ -263,6 +263,15 @@ XMLSEC_CRYPTO_EXPORT xmlSecKeyDataId 	xmlSecNssKeyDataRsaGetKlass	(void);
 XMLSEC_CRYPTO_EXPORT xmlSecTransformId xmlSecNssTransformRsaSha1GetKlass(void);
 
 /**
+ * xmlSecNssTransformRsaSha256Id:
+ *
+ * The RSA-SHA256 signature transform klass.
+ */
+#define xmlSecNssTransformRsaSha256Id	\
+	xmlSecNssTransformRsaSha256GetKlass()
+XMLSEC_CRYPTO_EXPORT xmlSecTransformId xmlSecNssTransformRsaSha256GetKlass(void);
+
+/**
  * xmlSecNssTransformRsaPkcs1Id:
  * 
  * The RSA PKCS1 key transport transform klass.
@@ -303,6 +312,22 @@ XMLSEC_CRYPTO_EXPORT xmlSecTransformId xmlSecNssTransformRsaOaepGetKlass(void);
 	xmlSecNssTransformSha1GetKlass()
 XMLSEC_CRYPTO_EXPORT xmlSecTransformId xmlSecNssTransformSha1GetKlass	(void);
 #endif /* XMLSEC_NO_SHA1 */
+
+/********************************************************************
+ *
+ * SHA256 transform
+ *
+ *******************************************************************/
+#ifndef XMLSEC_NO_SHA256
+/**
+ * xmlSecNssTransformSha256Id:
+ *
+ * The SHA256 digest transform klass.
+ */
+#define xmlSecNssTransformSha256Id \
+	xmlSecNssTransformSha256GetKlass()
+XMLSEC_CRYPTO_EXPORT xmlSecTransformId xmlSecNssTransformSha256GetKlass	(void);
+#endif /* XMLSEC_NO_SHA256 */
 
 #ifdef __cplusplus
 }
