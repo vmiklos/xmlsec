@@ -551,6 +551,9 @@ XMLSEC_EXPORT_VAR const xmlChar xmlSecXPath2FilterUnion[];
 XMLSEC_EXPORT_VAR const xmlChar xmlSecNameXPointer[];
 XMLSEC_EXPORT_VAR const xmlChar xmlSecNodeXPointer[];
 
+XMLSEC_EXPORT_VAR const xmlChar xmlSecNameRelationship[];
+XMLSEC_EXPORT_VAR const xmlChar xmlSecHrefRelationship[];
+
 /*************************************************************************
  *
  * Xslt strings

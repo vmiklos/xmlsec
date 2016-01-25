@@ -961,6 +961,10 @@ XMLSEC_EXPORT int		xmlSecTransformXPointerSetExpr		(xmlSecTransformPtr transform
 									 const xmlChar* expr,
 									 xmlSecNodeSetType nodeSetType,
 									 xmlNodePtr hereNode);
+
+#define xmlSecTransformRelationshipId xmlSecTransformRelationshipGetKlass()
+XMLSEC_EXPORT xmlSecTransformId xmlSecTransformRelationshipGetKlass (void);
+
 #ifndef XMLSEC_NO_XSLT
 /**
  * xmlSecTransformXsltId:
