@@ -105,6 +105,7 @@ xmlSecCryptoGetFunctions_mscrypto(void) {
 
 #ifndef XMLSEC_NO_RSA
     gXmlSecMSCryptoFunctions->transformRsaSha1GetKlass 		= xmlSecMSCryptoTransformRsaSha1GetKlass;
+    gXmlSecMSCryptoFunctions->transformRsaSha256GetKlass	= xmlSecMSCryptoTransformRsaSha256GetKlass;
     gXmlSecMSCryptoFunctions->transformRsaPkcs1GetKlass 	= xmlSecMSCryptoTransformRsaPkcs1GetKlass;
 #endif /* XMLSEC_NO_RSA */
 
@@ -119,6 +120,9 @@ xmlSecCryptoGetFunctions_mscrypto(void) {
 #ifndef XMLSEC_NO_SHA1    
     gXmlSecMSCryptoFunctions->transformSha1GetKlass 		= xmlSecMSCryptoTransformSha1GetKlass;
 #endif /* XMLSEC_NO_SHA1 */
+#ifndef XMLSEC_NO_SHA256
+    gXmlSecMSCryptoFunctions->transformSha256GetKlass 		= xmlSecMSCryptoTransformSha256GetKlass;
+#endif /* XMLSEC_NO_SHA256 */
 
 #ifndef XMLSEC_NO_GOST    
     gXmlSecMSCryptoFunctions->transformGostR3411_94GetKlass 		= xmlSecMSCryptoTransformGostR3411_94GetKlass;

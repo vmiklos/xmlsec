@@ -1009,7 +1009,7 @@ xmlSecMSCryptoKeyDataRsaInitialize(xmlSecKeyDataPtr data) {
     xmlSecAssert2(ctx != NULL, -1);
 
     ctx->providerName = MS_ENHANCED_PROV;
-    ctx->providerType = PROV_RSA_FULL;
+    ctx->providerType = PROV_RSA_AES;
     
     return(0);
 }

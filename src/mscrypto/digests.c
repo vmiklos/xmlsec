@@ -66,6 +66,11 @@ xmlSecMSCryptoDigestCheckId(xmlSecTransformPtr transform) {
 	return(1);
     }
 #endif /* XMLSEC_NO_SHA1 */    
+#ifndef XMLSEC_NO_SHA256
+    if(xmlSecTransformCheckId(transform, xmlSecMSCryptoTransformSha256Id)) {
+	return(1);
+    }
+#endif /* XMLSEC_NO_SHA256 */
     
 #ifndef XMLSEC_NO_GOST
     if(xmlSecTransformCheckId(transform, xmlSecMSCryptoTransformGostR3411_94Id)) {
@@ -94,6 +99,11 @@ xmlSecMSCryptoDigestInitialize(xmlSecTransformPtr transform) {
 	ctx->alg_id = CALG_SHA;
     } else 
 #endif /* XMLSEC_NO_SHA1 */    
+#ifndef XMLSEC_NO_SHA256
+    if(xmlSecTransformCheckId(transform, xmlSecMSCryptoTransformSha256Id)) {
+	ctx->alg_id = CALG_SHA_256;
+    } else
+#endif /* XMLSEC_NO_SHA256 */
 
 #ifndef XMLSEC_NO_GOST
     if(xmlSecTransformCheckId(transform, xmlSecMSCryptoTransformGostR3411_94Id)) {
@@ -124,6 +134,8 @@ xmlSecMSCryptoDigestInitialize(xmlSecTransformPtr transform) {
     }
 
     /* TODO: Check what provider is best suited here.... */
+    if (ctx->alg_id != CALG_SHA_256)
+    {
     if (!CryptAcquireContext(&ctx->provider, NULL, MS_STRONG_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
     	if (!CryptAcquireContext(&ctx->provider, NULL, MS_ENHANCED_PROV,PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
 		xmlSecError(XMLSEC_ERRORS_HERE, 
@@ -133,6 +145,20 @@ xmlSecMSCryptoDigestInitialize(xmlSecTransformPtr transform) {
 		    XMLSEC_ERRORS_NO_MESSAGE);
 		return(-1);
 	}
+    }
+    }
+    else
+    {
+	    // SHA-256
+	    if (!CryptAcquireContext(&ctx->provider, NULL, MS_ENH_RSA_AES_PROV, PROV_RSA_AES, CRYPT_VERIFYCONTEXT))
+	    {
+		    xmlSecError(XMLSEC_ERRORS_HERE,
+				xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
+				"CryptAcquireContext",
+				XMLSEC_ERRORS_R_CRYPTO_FAILED,
+				XMLSEC_ERRORS_NO_MESSAGE);
+		    return(-1);
+	    }
     }
 
     return(0);
@@ -366,6 +392,50 @@ xmlSecMSCryptoTransformSha1GetKlass(void) {
     return(&xmlSecMSCryptoSha1Klass);
 }
 #endif /* XMLSEC_NO_SHA1 */
+
+#ifndef XMLSEC_NO_SHA256
+/******************************************************************************
+ *
+ * SHA256
+ *
+ *****************************************************************************/
+static xmlSecTransformKlass xmlSecMSCryptoSha256Klass = {
+    /* klass/object sizes */
+    sizeof(xmlSecTransformKlass),		/* size_t klassSize */
+    xmlSecMSCryptoDigestSize,			/* size_t objSize */
+
+    xmlSecNameSha256,				/* const xmlChar* name; */
+    xmlSecHrefSha256, 				/* const xmlChar* href; */
+    xmlSecTransformUsageDigestMethod,		/* xmlSecTransformUsage usage; */
+    xmlSecMSCryptoDigestInitialize,		/* xmlSecTransformInitializeMethod initialize; */
+    xmlSecMSCryptoDigestFinalize,		/* xmlSecTransformFinalizeMethod finalize; */
+    NULL,					/* xmlSecTransformNodeReadMethod readNode; */
+    NULL,					/* xmlSecTransformNodeWriteMethod writeNode; */
+    NULL,					/* xmlSecTransformSetKeyReqMethod setKeyReq; */
+    NULL,					/* xmlSecTransformSetKeyMethod setKey; */
+    xmlSecMSCryptoDigestVerify,			/* xmlSecTransformVerifyMethod verify; */
+    xmlSecTransformDefaultGetDataType,		/* xmlSecTransformGetDataTypeMethod getDataType; */
+    xmlSecTransformDefaultPushBin,		/* xmlSecTransformPushBinMethod pushBin; */
+    xmlSecTransformDefaultPopBin,		/* xmlSecTransformPopBinMethod popBin; */
+    NULL,					/* xmlSecTransformPushXmlMethod pushXml; */
+    NULL,					/* xmlSecTransformPopXmlMethod popXml; */
+    xmlSecMSCryptoDigestExecute,		/* xmlSecTransformExecuteMethod execute; */
+    NULL,					/* void* reserved0; */
+    NULL,					/* void* reserved1; */
+};
+
+/**
+ * xmlSecMSCryptoTransformSha256GetKlass:
+ *
+ * SHA-256 digest transform klass.
+ *
+ * Returns: pointer to SHA-256 digest transform klass.
+ */
+xmlSecTransformId
+xmlSecMSCryptoTransformSha256GetKlass(void) {
+    return(&xmlSecMSCryptoSha256Klass);
+}
+#endif /* XMLSEC_NO_SHA256 */
 
 #ifndef XMLSEC_NO_GOST
 /******************************************************************************

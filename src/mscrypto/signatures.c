@@ -97,6 +97,9 @@ static int xmlSecMSCryptoSignatureCheckId(xmlSecTransformPtr transform) {
     if(xmlSecTransformCheckId(transform, xmlSecMSCryptoTransformRsaSha1Id)) {
 	return(1);
     }
+    if(xmlSecTransformCheckId(transform, xmlSecMSCryptoTransformRsaSha256Id)) {
+	return(1);
+    }
 #endif /* XMLSEC_NO_RSA */
 
     return(0);
@@ -118,6 +121,10 @@ static int xmlSecMSCryptoSignatureInitialize(xmlSecTransformPtr transform) {
 	ctx->digestAlgId    = CALG_SHA1;
 	ctx->keyId	    = xmlSecMSCryptoKeyDataRsaId;
     } else 
+    if(xmlSecTransformCheckId(transform, xmlSecMSCryptoTransformRsaSha256Id)) {
+	ctx->digestAlgId    = CALG_SHA_256;
+	ctx->keyId	    = xmlSecMSCryptoKeyDataRsaId;
+    } else
 #endif /* XMLSEC_NO_RSA */
 
 #ifndef XMLSEC_NO_GOST
@@ -282,6 +289,12 @@ static int xmlSecMSCryptoSignatureVerify(xmlSecTransformPtr transform,
 	while (l >= tmpBuf) {
 	    *l-- = *j++;
 	}
+    } else if (xmlSecTransformCheckId(transform, xmlSecMSCryptoTransformRsaSha256Id))  {
+	j = (BYTE *)data;
+	l = tmpBuf + dataSize - 1;
+	while (l >= tmpBuf) {
+	    *l-- = *j++;
+	}
     } else {
 	xmlSecError(XMLSEC_ERRORS_HERE, 
 		    xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
@@ -372,6 +385,68 @@ xmlSecMSCryptoSignatureExecute(xmlSecTransformPtr transform, int last, xmlSecTra
 			XMLSEC_ERRORS_NO_MESSAGE);
 	    return (-1);
 	}
+
+        if (transform->operation == xmlSecTransformOperationSign && ctx->digestAlgId == CALG_SHA_256)
+        {
+            /* CryptCreateHash() would fail with NTE_BAD_ALGID, as hProv is of
+             * type PROV_RSA_FULL, not PROV_RSA_AES. */
+
+            DWORD dwDataLen;
+            xmlSecSize nameSize;
+            xmlSecBuffer nameBuffer;
+            BYTE* nameData;
+
+            if (!CryptGetProvParam(hProv, PP_CONTAINER, NULL, &dwDataLen, 0))
+            {
+                xmlSecError(XMLSEC_ERRORS_HERE,
+                            xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
+                            "CryptGetProvParam",
+                            XMLSEC_ERRORS_R_CRYPTO_FAILED,
+                            XMLSEC_ERRORS_NO_MESSAGE);
+                return -1;
+            }
+
+            nameSize = (xmlSecSize)dwDataLen;
+            ret = xmlSecBufferInitialize(&nameBuffer, nameSize);
+            if (ret < 0)
+            {
+                xmlSecError(XMLSEC_ERRORS_HERE,
+                            xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
+                            "mlSecBufferInitialize",
+                            XMLSEC_ERRORS_R_XMLSEC_FAILED,
+                            "size=%d", nameSize);
+                return -1;
+            }
+
+            nameData = xmlSecBufferGetData(&nameBuffer);
+            if (!CryptGetProvParam(hProv, PP_CONTAINER, nameData, &dwDataLen, 0))
+            {
+                xmlSecError(XMLSEC_ERRORS_HERE,
+                            xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
+                            "CryptGetProvParam",
+                            XMLSEC_ERRORS_R_CRYPTO_FAILED,
+                            XMLSEC_ERRORS_NO_MESSAGE);
+                xmlSecBufferFinalize(&nameBuffer);
+                return -1;
+            }
+
+            HCRYPTPROV hCryptProv;
+            if (!CryptAcquireContext(&hCryptProv, nameData, MS_ENH_RSA_AES_PROV, PROV_RSA_AES, CRYPT_SILENT))
+            {
+                xmlSecError(XMLSEC_ERRORS_HERE,
+                            xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
+                            "CryptAcquireContext",
+                            XMLSEC_ERRORS_R_CRYPTO_FAILED,
+                            XMLSEC_ERRORS_NO_MESSAGE);
+                xmlSecBufferFinalize(&nameBuffer);
+                return -1;
+            }
+            xmlSecBufferFinalize(&nameBuffer);
+
+            hProv = hCryptProv;
+        }
+
+
 	if (!CryptCreateHash(hProv, ctx->digestAlgId, 0, 0, &(ctx->mscHash))) {
 	    xmlSecError(XMLSEC_ERRORS_HERE,
 			NULL,
@@ -445,6 +520,10 @@ xmlSecMSCryptoSignatureExecute(xmlSecTransformPtr transform, int last, xmlSecTra
 		xmlSecBufferFinalize(&tmp);
 		return(-1);
 	    }
+
+            if (ctx->digestAlgId == CALG_SHA_256)
+                CryptReleaseContext(hProv, 0);
+
 	    outSize = (xmlSecSize)dwSigLen;
 
 	    ret = xmlSecBufferSetSize(out, outSize);
@@ -481,6 +560,13 @@ xmlSecMSCryptoSignatureExecute(xmlSecTransformPtr transform, int last, xmlSecTra
 		}
 #endif /*ndef XMLSEC_NO_GOST*/
 	    } else if (xmlSecTransformCheckId(transform, xmlSecMSCryptoTransformRsaSha1Id)) {
+		i = tmpBuf;
+		j = outBuf + dwSigLen - 1;
+
+		while (j >= outBuf) {
+		    *j-- = *i++;
+		}
+	    } else if (xmlSecTransformCheckId(transform, xmlSecMSCryptoTransformRsaSha256Id)) {
 		i = tmpBuf;
 		j = outBuf + dwSigLen - 1;
 
@@ -561,6 +647,50 @@ static xmlSecTransformKlass xmlSecMSCryptoRsaSha1Klass = {
 xmlSecTransformId 
 xmlSecMSCryptoTransformRsaSha1GetKlass(void) {
     return(&xmlSecMSCryptoRsaSha1Klass);
+}
+
+/****************************************************************************
+ *
+ * RSA-SHA256 signature transform
+ *
+ ***************************************************************************/
+static xmlSecTransformKlass xmlSecMSCryptoRsaSha256Klass = {
+    /* klass/object sizes */
+    sizeof(xmlSecTransformKlass),		/* xmlSecSize klassSize */
+    xmlSecMSCryptoSignatureSize,		/* xmlSecSize objSize */
+
+    xmlSecNameRsaSha256,			/* const xmlChar* name; */
+    xmlSecHrefRsaSha256, 			/* const xmlChar* href; */
+    xmlSecTransformUsageSignatureMethod,	/* xmlSecTransformUsage usage; */
+
+    xmlSecMSCryptoSignatureInitialize,		/* xmlSecTransformInitializeMethod initialize; */
+    xmlSecMSCryptoSignatureFinalize,		/* xmlSecTransformFinalizeMethod finalize; */
+    NULL,					/* xmlSecTransformNodeReadMethod readNode; */
+    NULL,					/* xmlSecTransformNodeWriteMethod writeNode; */
+    xmlSecMSCryptoSignatureSetKeyReq,		/* xmlSecTransformSetKeyReqMethod setKeyReq; */
+    xmlSecMSCryptoSignatureSetKey,		/* xmlSecTransformSetKeyMethod setKey; */
+    xmlSecMSCryptoSignatureVerify,		/* xmlSecTransformVerifyMethod verify; */
+    xmlSecTransformDefaultGetDataType,		/* xmlSecTransformGetDataTypeMethod getDataType; */
+    xmlSecTransformDefaultPushBin,		/* xmlSecTransformPushBinMethod pushBin; */
+    xmlSecTransformDefaultPopBin,		/* xmlSecTransformPopBinMethod popBin; */
+    NULL,					/* xmlSecTransformPushXmlMethod pushXml; */
+    NULL,					/* xmlSecTransformPopXmlMethod popXml; */
+    xmlSecMSCryptoSignatureExecute,		/* xmlSecTransformExecuteMethod execute; */
+
+    NULL,					/* void* reserved0; */
+    NULL,					/* void* reserved1; */
+};
+
+/**
+ * xmlSecMSCryptoTransformRsaSha256GetKlass:
+ *
+ * The RSA-SHA1 signature transform klass.
+ *
+ * Returns: RSA-SHA1 signature transform klass.
+ */
+xmlSecTransformId
+xmlSecMSCryptoTransformRsaSha256GetKlass(void) {
+    return(&xmlSecMSCryptoRsaSha256Klass);
 }
 
 #endif /* XMLSEC_NO_RSA */
