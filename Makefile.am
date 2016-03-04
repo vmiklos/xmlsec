@@ -1,8 +1,9 @@
 NULL =
 
 SAFE_VERSION	= @XMLSEC_VERSION_SAFE@
-SUBDIRS 	= include src apps man docs
-TEST_APP 	= apps/xmlsec1$(EXEEXT)
+#Do not build xmlsec1 app. It is not needed. Also the libtool includes 
+#a -L/path_to_lib_dir which may contain an incompatible lixbml2.
+SUBDIRS = include src man docs
 DEFAULT_CRYPTO	= @XMLSEC_CRYPTO@
 
 bin_SCRIPTS 	= xmlsec1-config
