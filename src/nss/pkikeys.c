@@ -24,6 +24,7 @@
 #include <xmlsec/nss/crypto.h>
 #include <xmlsec/nss/bignum.h>
 #include <xmlsec/nss/pkikeys.h>
+#include <xmlsec/nss/tokens.h>
 
 /**************************************************************************
  *
@@ -115,6 +116,8 @@ xmlSecNSSPKIKeyDataCtxDup(xmlSecNssPKIKeyDataCtxPtr ctxDst,
                           xmlSecNssPKIKeyDataCtxPtr ctxSrc)
 {
     xmlSecNSSPKIKeyDataCtxFree(ctxDst);
+    ctxDst->privkey = NULL ;
+    ctxDst->pubkey = NULL ;
     if (ctxSrc->privkey != NULL) {
         ctxDst->privkey = SECKEY_CopyPrivateKey(ctxSrc->privkey);
         if(ctxDst->privkey == NULL) {
@@ -563,9 +566,10 @@ xmlSecNssKeyDataDsaXmlRead(xmlSecKeyDataId id, xmlSecKeyPtr key,
         goto done;
     }
 
-    slot = PK11_GetBestSlot(CKM_DSA, NULL);
+    slot = xmlSecNssSlotGet(CKM_DSA);
     if(slot == NULL) {
-        xmlSecNssError("PK11_GetBestSlot", xmlSecKeyDataKlassGetName(id));
+        xmlSecNssError("xmlSecNssSlotGet",
+                       xmlSecKeyDataKlassGetName(id));
         ret = -1;
         goto done;
     }
@@ -713,14 +717,14 @@ done:
     if (slot != NULL) {
         PK11_FreeSlot(slot);
     }
-    if (ret != 0) {
+    
         if (pubkey != NULL) {
             SECKEY_DestroyPublicKey(pubkey);
         }
         if (data != NULL) {
             xmlSecKeyDataDestroy(data);
         }
-    }
+    
     return(ret);
 }
 
@@ -739,7 +743,7 @@ xmlSecNssKeyDataDsaXmlWrite(xmlSecKeyDataId id, xmlSecKeyPtr key,
 
     ctx = xmlSecNssPKIKeyDataGetCtx(xmlSecKeyGetValue(key));
     xmlSecAssert2(ctx != NULL, -1);
-    xmlSecAssert2(SECKEY_GetPublicKeyType(ctx->pubkey) == dsaKey, -1);
+    /*xmlSecAssert2(SECKEY_GetPublicKeyType(ctx->pubkey) == dsaKey, -1);*/
 
     if(((xmlSecKeyDataTypePublic | xmlSecKeyDataTypePrivate) & keyInfoCtx->keyReq.keyType) == 0) {
         /* we can have only private key or public key */
@@ -826,36 +830,32 @@ xmlSecNssKeyDataDsaGenerate(xmlSecKeyDataPtr data, xmlSecSize sizeBits, xmlSecKe
     j = PQG_PBITS_TO_INDEX(sizeBits);
     rv = PK11_PQG_ParamGen(j, &pqgParams, &pqgVerify);
     if (rv != SECSuccess) {
-        xmlSecNssError2("PK11_PQG_ParamGen", xmlSecKeyDataGetName(data),
+        xmlSecNssError2("PK11_PQG_ParamGen",
+                        xmlSecKeyDataGetName(data),
                         "size=%lu", (unsigned long)sizeBits);
+	ret = -1;
         goto done;
     }
 
     rv = PK11_PQG_VerifyParams(pqgParams, pqgVerify, &res);
     if (rv != SECSuccess || res != SECSuccess) {
-        xmlSecNssError2("PK11_PQG_VerifyParams", xmlSecKeyDataGetName(data),
-                        "size=%lu", (unsigned long)sizeBits);
+        xmlSecNssError2("PK11_PQG_VerifyParams",
+                    xmlSecKeyDataGetName(data),
+                    "size=%lu", (unsigned long)sizeBits);
+	ret = -1;
         goto done;
     }
 
-    slot = PK11_GetBestSlot(CKM_DSA_KEY_PAIR_GEN, NULL);
-    if(slot == NULL) {
-        xmlSecNssError("PK11_GetBestSlot", xmlSecKeyDataGetName(data));
-        goto done;
-    }
-
-    rv = PK11_Authenticate(slot, PR_TRUE, NULL /* default pwd callback */);
-    if (rv != SECSuccess) {
-        xmlSecNssError2("PK11_Authenticate", xmlSecKeyDataGetName(data),
-                        "token=%s", xmlSecErrorsSafeString(PK11_GetTokenName(slot)));
-        goto done;
-    }
-
+    slot = xmlSecNssSlotGet(CKM_DSA_KEY_PAIR_GEN);
+    PK11_Authenticate(slot, PR_TRUE, NULL /* default pwd callback */);
     privkey = PK11_GenerateKeyPair(slot, CKM_DSA_KEY_PAIR_GEN, pqgParams,
                                    &pubkey, PR_FALSE, PR_TRUE, NULL);
 
     if((privkey == NULL) || (pubkey == NULL)) {
-        xmlSecNssError("PK11_GenerateKeyPair", xmlSecKeyDataGetName(data));
+        xmlSecNssError("PK11_GenerateKeyPair",
+                    xmlSecKeyDataGetName(data));
+
+        ret =  -1;
         goto done;
     }
 
@@ -866,6 +866,8 @@ xmlSecNssKeyDataDsaGenerate(xmlSecKeyDataPtr data, xmlSecSize sizeBits, xmlSecKe
         goto done;
     }
 
+    privkey = NULL ;
+    pubkey = NULL ;
     ret = 0;
 
 done:
@@ -878,16 +880,13 @@ done:
     if (pqgVerify != NULL) {
         PK11_PQG_DestroyVerify(pqgVerify);
     }
-    if (ret == 0) {
-        return (0);
-    }
     if (pubkey != NULL) {
         SECKEY_DestroyPublicKey(pubkey);
     }
     if (privkey != NULL) {
         SECKEY_DestroyPrivateKey(privkey);
     }
-    return(-1);
+    return(ret);
 }
 
 static xmlSecKeyDataType
@@ -897,10 +896,10 @@ xmlSecNssKeyDataDsaGetType(xmlSecKeyDataPtr data) {
     xmlSecAssert2(xmlSecKeyDataCheckId(data, xmlSecNssKeyDataDsaId), xmlSecKeyDataTypeUnknown);
     ctx = xmlSecNssPKIKeyDataGetCtx(data);
     xmlSecAssert2(ctx != NULL, -1);
-    xmlSecAssert2(SECKEY_GetPublicKeyType(ctx->pubkey) == dsaKey, -1);
+    /*xmlSecAssert2(SECKEY_GetPublicKeyType(ctx->pubkey) == dsaKey, -1);*/
     if (ctx->privkey != NULL) {
         return(xmlSecKeyDataTypePrivate | xmlSecKeyDataTypePublic);
-    } else {
+    } else if( ctx->pubkey != NULL ) {
         return(xmlSecKeyDataTypePublic);
     }
 
@@ -914,7 +913,7 @@ xmlSecNssKeyDataDsaGetSize(xmlSecKeyDataPtr data) {
     xmlSecAssert2(xmlSecKeyDataCheckId(data, xmlSecNssKeyDataDsaId), 0);
     ctx = xmlSecNssPKIKeyDataGetCtx(data);
     xmlSecAssert2(ctx != NULL, -1);
-    xmlSecAssert2(SECKEY_GetPublicKeyType(ctx->pubkey) == dsaKey, -1);
+    /*xmlSecAssert2(SECKEY_GetPublicKeyType(ctx->pubkey) == dsaKey, -1);*/
 
     return(8 * SECKEY_PublicKeyStrength(ctx->pubkey));
 }
@@ -1101,9 +1100,10 @@ xmlSecNssKeyDataRsaXmlRead(xmlSecKeyDataId id, xmlSecKeyPtr key,
         goto done;
     }
 
-    slot = PK11_GetBestSlot(CKM_RSA_PKCS, NULL);
+    slot = xmlSecNssSlotGet(CKM_RSA_PKCS);
     if(slot == NULL) {
-        xmlSecNssError("PK11_GetBestSlot", xmlSecKeyDataKlassGetName(id));
+        xmlSecNssError("PK11_GetBestSlot",
+                       xmlSecKeyDataKlassGetName(id));
         ret = -1;
         goto done;
     }
@@ -1226,7 +1226,7 @@ xmlSecNssKeyDataRsaXmlWrite(xmlSecKeyDataId id, xmlSecKeyPtr key,
 
     ctx = xmlSecNssPKIKeyDataGetCtx(xmlSecKeyGetValue(key));
     xmlSecAssert2(ctx != NULL, -1);
-    xmlSecAssert2(SECKEY_GetPublicKeyType(ctx->pubkey) == rsaKey, -1);
+    /*xmlSecAssert2(SECKEY_GetPublicKeyType(ctx->pubkey) == rsaKey, -1);*/
 
 
     if(((xmlSecKeyDataTypePublic | xmlSecKeyDataTypePrivate) & keyInfoCtx->keyReq.keyType) == 0) {
@@ -1282,19 +1282,8 @@ xmlSecNssKeyDataRsaGenerate(xmlSecKeyDataPtr data, xmlSecSize sizeBits, xmlSecKe
     params.keySizeInBits = sizeBits;
     params.pe = 65537;
 
-    slot = PK11_GetBestSlot(CKM_RSA_PKCS_KEY_PAIR_GEN, NULL);
-    if(slot == NULL) {
-        xmlSecNssError("PK11_GetBestSlot", xmlSecKeyDataGetName(data));
-        goto done;
-    }
-
-    rv = PK11_Authenticate(slot, PR_TRUE, NULL /* default pwd callback */);
-    if (rv != SECSuccess) {
-        xmlSecNssError2("PK11_Authenticate", xmlSecKeyDataGetName(data),
-                        "token=%s", xmlSecErrorsSafeString(PK11_GetTokenName(slot)));
-        goto done;
-    }
-
+    slot = xmlSecNssSlotGet(CKM_RSA_PKCS_KEY_PAIR_GEN);
+    PK11_Authenticate(slot, PR_TRUE, NULL /* default pwd callback */);
     privkey = PK11_GenerateKeyPair(slot, CKM_RSA_PKCS_KEY_PAIR_GEN, &params,
                                    &pubkey, PR_FALSE, PR_TRUE, NULL);
     if(privkey == NULL || pubkey == NULL) {
@@ -1354,7 +1343,7 @@ xmlSecNssKeyDataRsaGetSize(xmlSecKeyDataPtr data) {
 
     ctx = xmlSecNssPKIKeyDataGetCtx(data);
     xmlSecAssert2(ctx != NULL, -1);
-    xmlSecAssert2(SECKEY_GetPublicKeyType(ctx->pubkey) == rsaKey, -1);
+    /*xmlSecAssert2(SECKEY_GetPublicKeyType(ctx->pubkey) == rsaKey, -1);*/
 
     return(8 * SECKEY_PublicKeyStrength(ctx->pubkey));
 }
