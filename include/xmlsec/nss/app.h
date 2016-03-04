@@ -22,6 +22,9 @@ extern "C" {
 #include <xmlsec/keysmngr.h>
 #include <xmlsec/transforms.h>
 
+#include <xmlsec/nss/tokens.h>
+#include <xmlsec/nss/akmngr.h>
+
 /********************************************************************
  *
  * Init/shutdown
@@ -40,6 +43,8 @@ XMLSEC_CRYPTO_EXPORT int                xmlSecNssAppDefaultKeysMngrAdoptKey(xmlS
                                                                             xmlSecKeyPtr key);
 XMLSEC_CRYPTO_EXPORT int                xmlSecNssAppDefaultKeysMngrLoad (xmlSecKeysMngrPtr mngr,
                                                                          const char* uri);
+XMLSEC_CRYPTO_EXPORT int               xmlSecNssAppDefaultKeysMngrAdoptKeySlot(xmlSecKeysMngrPtr mngr,
+                                                                        xmlSecNssKeySlotPtr keySlot);
 XMLSEC_CRYPTO_EXPORT int                xmlSecNssAppDefaultKeysMngrSave (xmlSecKeysMngrPtr mngr,
                                                                          const char* filename,
                                                                          xmlSecKeyDataType type);

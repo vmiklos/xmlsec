@@ -35,6 +35,8 @@ libxmlsec1_nss_la_SOURCES =\
 	kw_des.c \
 	kw_aes.c \
 	globals.h \
+	akmngr.c \
+	tokens.c \
 	$(NULL)
 
 libxmlsec1_nss_la_LIBADD = \

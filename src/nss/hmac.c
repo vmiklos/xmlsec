@@ -23,8 +23,8 @@
 #include <xmlsec/transforms.h>
 #include <xmlsec/errors.h>
 
-#include <xmlsec/nss/app.h>
 #include <xmlsec/nss/crypto.h>
+#include <xmlsec/nss/tokens.h>
 
 /* sizes in bits */
 #define XMLSEC_NSS_MIN_HMAC_SIZE                80
@@ -343,9 +343,9 @@ xmlSecNssHmacSetKey(xmlSecTransformPtr transform, xmlSecKeyPtr key) {
     keyItem.data = xmlSecBufferGetData(buffer);
     keyItem.len  = xmlSecBufferGetSize(buffer);
 
-    slot = PK11_GetBestSlot(ctx->digestType, NULL);
+    slot = xmlSecNssSlotGet(ctx->digestType);
     if(slot == NULL) {
-        xmlSecNssError("PK11_GetBestSlot", xmlSecTransformGetName(transform));
+        xmlSecNssError("xmlSecNssSlotGet", xmlSecTransformGetName(transform));
         return(-1);
     }
 
