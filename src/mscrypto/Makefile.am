@@ -39,6 +39,7 @@ libxmlsec1_mscrypto_la_SOURCES =\
 	csp_calg.h \
 	csp_oid.h \
 	xmlsec-mingw.h \
+	akmngr.c \
 	$(NULL)
 
 if SHAREDLIB_HACK
