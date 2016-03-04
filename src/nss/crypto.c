@@ -214,6 +214,7 @@ xmlSecCryptoGetFunctions_nss(void) {
      * High level routines form xmlsec command line utility
      *
      ********************************************************************/
+#if 0
     gXmlSecNssFunctions->cryptoAppInit                  = xmlSecNssAppInit;
     gXmlSecNssFunctions->cryptoAppShutdown              = xmlSecNssAppShutdown;
     gXmlSecNssFunctions->cryptoAppDefaultKeysMngrInit   = xmlSecNssAppDefaultKeysMngrInit;
@@ -231,6 +232,25 @@ xmlSecCryptoGetFunctions_nss(void) {
     gXmlSecNssFunctions->cryptoAppKeyLoad               = xmlSecNssAppKeyLoad;
     gXmlSecNssFunctions->cryptoAppKeyLoadMemory         = xmlSecNssAppKeyLoadMemory;
     gXmlSecNssFunctions->cryptoAppDefaultPwdCallback    = (void*)xmlSecNssAppGetDefaultPwdCallback();
+#else
+    gXmlSecNssFunctions->cryptoAppInit                  = NULL;
+    gXmlSecNssFunctions->cryptoAppShutdown              = NULL;
+    gXmlSecNssFunctions->cryptoAppDefaultKeysMngrInit   = NULL;
+    gXmlSecNssFunctions->cryptoAppDefaultKeysMngrAdoptKey       = NULL;
+    gXmlSecNssFunctions->cryptoAppDefaultKeysMngrLoad   = NULL;
+    gXmlSecNssFunctions->cryptoAppDefaultKeysMngrSave   = NULL;
+#ifndef XMLSEC_NO_X509
+    gXmlSecNssFunctions->cryptoAppKeysMngrCertLoad      = NULL;
+    gXmlSecNssFunctions->cryptoAppKeysMngrCertLoadMemory= NULL;
+    gXmlSecNssFunctions->cryptoAppPkcs12Load            = NULL;
+    gXmlSecNssFunctions->cryptoAppPkcs12LoadMemory      = NULL;
+    gXmlSecNssFunctions->cryptoAppKeyCertLoad           = NULL;
+    gXmlSecNssFunctions->cryptoAppKeyCertLoadMemory     = NULL;
+#endif /* XMLSEC_NO_X509 */
+    gXmlSecNssFunctions->cryptoAppKeyLoad               = NULL;
+    gXmlSecNssFunctions->cryptoAppKeyLoadMemory         = NULL;
+    gXmlSecNssFunctions->cryptoAppDefaultPwdCallback    = (void*)NULL;
+#endif
 
     return(gXmlSecNssFunctions);
 }
