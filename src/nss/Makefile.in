@@ -135,7 +135,8 @@ am__DEPENDENCIES_1 =
 am__libxmlsec1_nss_la_SOURCES_DIST = app.c bignum.c ciphers.c crypto.c \
 	digests.c hmac.c pkikeys.c signatures.c symkeys.c x509.c \
 	x509vfy.c keysstore.c keytrans.c kw_des.c kw_aes.c globals.h \
-	../strings.c
+	../strings.c \
+	akmngr.c tokens.c
 am__objects_1 =
 am__dirstamp = $(am__leading_dot)dirstamp
 @SHAREDLIB_HACK_TRUE@am__objects_2 = ../libxmlsec1_nss_la-strings.lo
@@ -147,6 +148,8 @@ am_libxmlsec1_nss_la_OBJECTS = libxmlsec1_nss_la-app.lo \
 	libxmlsec1_nss_la-x509.lo libxmlsec1_nss_la-x509vfy.lo \
 	libxmlsec1_nss_la-keysstore.lo libxmlsec1_nss_la-keytrans.lo \
 	libxmlsec1_nss_la-kw_des.lo libxmlsec1_nss_la-kw_aes.lo \
+	libxmlsec1_nss_la-akmngr.lo \
+	libxmlsec1_nss_la-tokens.lo \
 	$(am__objects_1) $(am__objects_2)
 libxmlsec1_nss_la_OBJECTS = $(am_libxmlsec1_nss_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -464,6 +467,7 @@ libxmlsec1_nss_la_CPPFLAGS = \
 libxmlsec1_nss_la_SOURCES = app.c bignum.c ciphers.c crypto.c \
 	digests.c hmac.c pkikeys.c signatures.c symkeys.c x509.c \
 	x509vfy.c keysstore.c keytrans.c kw_des.c kw_aes.c globals.h \
+	akmngr.c tokens.c \
 	$(NULL) $(am__append_1)
 libxmlsec1_nss_la_LIBADD = \
 	$(NSS_LIBS) \
@@ -584,6 +588,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libxmlsec1_nss_la-symkeys.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libxmlsec1_nss_la-x509.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libxmlsec1_nss_la-x509vfy.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libxmlsec1_nss_la-akmngr.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libxmlsec1_nss_la-tokens.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -615,6 +621,20 @@ libxmlsec1_nss_la-app.lo: app.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='app.c' object='libxmlsec1_nss_la-app.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libxmlsec1_nss_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libxmlsec1_nss_la-app.lo `test -f 'app.c' || echo '$(srcdir)/'`app.c
+
+libxmlsec1_nss_la-akmngr.lo: akmngr.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libxmlsec1_nss_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libxmlsec1_nss_la-akmngr.lo -MD -MP -MF "$(DEPDIR)/libxmlsec1_nss_la-akmngr.Tpo" -c -o libxmlsec1_nss_la-akmngr.lo `test -f 'akmngr.c' || echo '$(srcdir)/'`akmngr.c; \
+@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/libxmlsec1_nss_la-akmngr.Tpo" "$(DEPDIR)/libxmlsec1_nss_la-akmngr.Plo"; else rm -f "$(DEPDIR)/libxmlsec1_nss_la-akmngr.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='akmngr.c' object='libxmlsec1_nss_la-akmngr.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libxmlsec1_nss_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libxmlsec1_nss_la-akmngr.lo `test -f 'akmngr.c' || echo '$(srcdir)/'`akmngr.c
+
+libxmlsec1_nss_la-tokens.lo: tokens.c
+@am__fastdepCC_TRUE@	if $(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libxmlsec1_nss_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libxmlsec1_nss_la-tokens.lo -MD -MP -MF "$(DEPDIR)/libxmlsec1_nss_la-tokens.Tpo" -c -o libxmlsec1_nss_la-tokens.lo `test -f 'tokens.c' || echo '$(srcdir)/'`tokens.c; \
+@am__fastdepCC_TRUE@	then mv -f "$(DEPDIR)/libxmlsec1_nss_la-tokens.Tpo" "$(DEPDIR)/libxmlsec1_nss_la-tokens.Plo"; else rm -f "$(DEPDIR)/libxmlsec1_nss_la-tokens.Tpo"; exit 1; fi
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='tokens.c' object='libxmlsec1_nss_la-tokens.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(LIBTOOL) --mode=compile --tag=CC $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libxmlsec1_nss_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libxmlsec1_nss_la-tokens.lo `test -f 'tokens.c' || echo '$(srcdir)/'`tokens.c
 
 libxmlsec1_nss_la-bignum.lo: bignum.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libxmlsec1_nss_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libxmlsec1_nss_la-bignum.lo -MD -MP -MF $(DEPDIR)/libxmlsec1_nss_la-bignum.Tpo -c -o libxmlsec1_nss_la-bignum.lo `test -f 'bignum.c' || echo '$(srcdir)/'`bignum.c
