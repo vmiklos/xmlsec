@@ -7,7 +7,7 @@
  * 
  * Copyright (C) 2002-2003 Aleksey Sanin <aleksey@aleksey.com>
  */
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && _MSC_VER < 1900
 #define snprintf _snprintf
 #endif
 
