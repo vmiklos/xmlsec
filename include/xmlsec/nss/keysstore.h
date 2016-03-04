@@ -16,6 +16,8 @@ extern "C" {
 #endif /* __cplusplus */ 
 
 #include <xmlsec/xmlsec.h>
+#include <xmlsec/keysmngr.h>
+#include <xmlsec/nss/tokens.h>
 
 /****************************************************************************
  *
@@ -31,6 +33,8 @@ extern "C" {
 XMLSEC_CRYPTO_EXPORT xmlSecKeyStoreId	xmlSecNssKeysStoreGetKlass	(void);
 XMLSEC_CRYPTO_EXPORT int		xmlSecNssKeysStoreAdoptKey	(xmlSecKeyStorePtr store,
 									 xmlSecKeyPtr key);
+XMLSEC_CRYPTO_EXPORT int		xmlSecNssKeysStoreAdoptKeySlot(xmlSecKeyStorePtr store,
+									 xmlSecNssKeySlotPtr keySlot);
 XMLSEC_CRYPTO_EXPORT int		xmlSecNssKeysStoreLoad 	(xmlSecKeyStorePtr store,
 								 const char *uri,
 								 xmlSecKeysMngrPtr keysMngr);

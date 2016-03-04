@@ -30,6 +30,7 @@
 #include <xmlsec/keyinfo.h>
 #include <xmlsec/keysmngr.h>
 #include <xmlsec/base64.h>
+#include <xmlsec/bn.h>
 #include <xmlsec/errors.h>
 
 #include <xmlsec/nss/crypto.h>
@@ -61,17 +62,7 @@ struct _xmlSecNssX509StoreCtx {
  
 static int		xmlSecNssX509StoreInitialize	(xmlSecKeyDataStorePtr store);
 static void		xmlSecNssX509StoreFinalize	(xmlSecKeyDataStorePtr store);
-static int 		xmlSecNssX509NameStringRead	(xmlSecByte **str, 
-							 int *strLen, 
-							 xmlSecByte *res, 
-							 int resLen,
-							 xmlSecByte delim, 
-							 int ingoreTrailingSpaces);
-static xmlSecByte * 	xmlSecNssX509NameRead		(xmlSecByte *str, 
-							 int len);
-
-static void 		xmlSecNssNumToItem(SECItem *it, unsigned long num);
-
+static int		xmlSecNssIntegerToItem( const xmlChar* integer , SECItem *it ) ;
 
 static xmlSecKeyDataStoreKlass xmlSecNssX509StoreKlass = {
     sizeof(xmlSecKeyDataStoreKlass),
@@ -353,40 +344,28 @@ static CERTCertificate*
 xmlSecNssX509FindCert(xmlChar *subjectName, xmlChar *issuerName, 
 		      xmlChar *issuerSerial, xmlChar *ski) {
     CERTCertificate *cert = NULL;
-    xmlChar         *p = NULL;
     CERTName *name = NULL;
     SECItem *nameitem = NULL;
     PRArenaPool *arena = NULL;
 
     if (subjectName != NULL) {
-	p = xmlSecNssX509NameRead(subjectName, xmlStrlen(subjectName));
-	if (p == NULL) {
-            xmlSecError(XMLSEC_ERRORS_HERE,
-                        NULL,
-                        "xmlSecNssX509NameRead",
-                        XMLSEC_ERRORS_R_XMLSEC_FAILED,
-                        "subject=%s",
-                        xmlSecErrorsSafeString(subjectName));
-	    goto done;
-	}
-
 	arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
 	if (arena == NULL) {
             xmlSecError(XMLSEC_ERRORS_HERE,
                         NULL,
                         "PORT_NewArena",
                         XMLSEC_ERRORS_R_CRYPTO_FAILED,
-                        XMLSEC_ERRORS_NO_MESSAGE);
+                        "error code=%d", PORT_GetError());
 	    goto done;
 	}
 
-	name = CERT_AsciiToName((char*)p);
+	name = CERT_AsciiToName((char*)subjectName);
 	if (name == NULL) {
             xmlSecError(XMLSEC_ERRORS_HERE,
                         NULL,
                         "CERT_AsciiToName",
                         XMLSEC_ERRORS_R_XMLSEC_FAILED,
-                        XMLSEC_ERRORS_NO_MESSAGE);
+                        "error code=%d", PORT_GetError());
 	    goto done;
 	}
 
@@ -408,34 +387,23 @@ xmlSecNssX509FindCert(xmlChar *subjectName, xmlChar *issuerName,
     if((issuerName != NULL) && (issuerSerial != NULL)) {
 	CERTIssuerAndSN issuerAndSN;
 
-	p = xmlSecNssX509NameRead(issuerName, xmlStrlen(issuerName));
-	if (p == NULL) {
-            xmlSecError(XMLSEC_ERRORS_HERE,
-                        NULL,
-                        "xmlSecNssX509NameRead",
-                        XMLSEC_ERRORS_R_XMLSEC_FAILED,
-                        "issuer=%s",
-                        xmlSecErrorsSafeString(issuerName));
-	    goto done;
-	}
-
 	arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
 	if (arena == NULL) {
             xmlSecError(XMLSEC_ERRORS_HERE,
                         NULL,
                         "PORT_NewArena",
                         XMLSEC_ERRORS_R_CRYPTO_FAILED,
-                        XMLSEC_ERRORS_NO_MESSAGE);
+                        "error code=%d", PORT_GetError());
 	    goto done;
 	}
 
-	name = CERT_AsciiToName((char*)p);
+	name = CERT_AsciiToName((char*)issuerName);
 	if (name == NULL) {
             xmlSecError(XMLSEC_ERRORS_HERE,
                         NULL,
                         "CERT_AsciiToName",
                         XMLSEC_ERRORS_R_XMLSEC_FAILED,
-                        XMLSEC_ERRORS_NO_MESSAGE);
+                        "error code=%d", PORT_GetError());
 	    goto done;
 	}
 
@@ -455,8 +423,15 @@ xmlSecNssX509FindCert(xmlChar *subjectName, xmlChar *issuerName,
 	issuerAndSN.derIssuer.data = nameitem->data;
 	issuerAndSN.derIssuer.len = nameitem->len;
 
-	/* TBD: serial num can be arbitrarily long */
-	xmlSecNssNumToItem(&issuerAndSN.serialNumber, PORT_Atoi((char *)issuerSerial));
+        if( xmlSecNssIntegerToItem( issuerSerial, &issuerAndSN.serialNumber ) < 0 ) {
+                xmlSecError(XMLSEC_ERRORS_HERE,
+                        NULL,
+                        "xmlSecNssIntegerToItem",
+                        XMLSEC_ERRORS_R_XMLSEC_FAILED,
+                        "serial number=%s",
+                        xmlSecErrorsSafeString(issuerSerial));
+                goto done;
+        }
 
 	cert = CERT_FindCertByIssuerAndSN(CERT_GetDefaultCertDB(), 
 					  &issuerAndSN);
@@ -487,9 +462,6 @@ xmlSecNssX509FindCert(xmlChar *subjectName, xmlChar *issuerName,
     }
 
 done:
-    if (p != NULL) {
-	PORT_Free(p);
-    }
     if (arena != NULL) {
 	PORT_FreeArena(arena, PR_FALSE);
     }
@@ -498,176 +470,6 @@ done:
     }
 
     return(cert);
-}
-
-static xmlSecByte *
-xmlSecNssX509NameRead(xmlSecByte *str, int len) {
-    xmlSecByte name[256];
-    xmlSecByte value[256];
-    xmlSecByte *retval = NULL;
-    xmlSecByte *p = NULL;
-    int nameLen, valueLen;
-
-    xmlSecAssert2(str != NULL, NULL);
-    
-    /* return string should be no longer than input string */
-    retval = (xmlSecByte *)PORT_Alloc(len+1);
-    if(retval == NULL) {
-	xmlSecError(XMLSEC_ERRORS_HERE,
-		    NULL,
-		    "PORT_Alloc",
-		    XMLSEC_ERRORS_R_MALLOC_FAILED,
-		    XMLSEC_ERRORS_NO_MESSAGE);
-	return(NULL);
-    }
-    p = retval;
-    
-    while(len > 0) {
-	/* skip spaces after comma or semicolon */
-	while((len > 0) && isspace(*str)) {
-	    ++str; --len;
-	}
-
-	nameLen = xmlSecNssX509NameStringRead(&str, &len, name, sizeof(name), '=', 0);	
-	if(nameLen < 0) {
-	    xmlSecError(XMLSEC_ERRORS_HERE,
-			NULL,
-			"xmlSecNssX509NameStringRead",
-			XMLSEC_ERRORS_R_XMLSEC_FAILED,
-			XMLSEC_ERRORS_NO_MESSAGE);
-	    goto done;
-	}
-	memcpy(p, name, nameLen);
-	p+=nameLen;
-	*p++='=';
-	if(len > 0) {
-	    ++str; --len;
-	    if((*str) == '\"') {
-		valueLen = xmlSecNssX509NameStringRead(&str, &len, 
-					value, sizeof(value), '"', 1);	
-		if(valueLen < 0) {
-		    xmlSecError(XMLSEC_ERRORS_HERE,
-				NULL,
-				"xmlSecNssX509NameStringRead",
-				XMLSEC_ERRORS_R_XMLSEC_FAILED,
-				XMLSEC_ERRORS_NO_MESSAGE);
-		    goto done;
-    		}
-		/* skip spaces before comma or semicolon */
-		while((len > 0) && isspace(*str)) {
-		    ++str; --len;
-		}
-		if((len > 0) && ((*str) != ',')) {
-		    xmlSecError(XMLSEC_ERRORS_HERE,
-				NULL,
-				NULL,
-				XMLSEC_ERRORS_R_INVALID_DATA,
-				"comma is expected");
-		    goto done;
-		}
-		if(len > 0) {
-		    ++str; --len;
-		}
-		*p++='\"';
-		memcpy(p, value, valueLen);
-		p+=valueLen;
-		*p++='\"';
-	    } else if((*str) == '#') {
-		/* TODO: read octect values */
-		xmlSecError(XMLSEC_ERRORS_HERE,
-			    NULL,
-			    NULL,
-			    XMLSEC_ERRORS_R_INVALID_DATA,
-			    "reading octect values is not implemented yet");
-		goto done;
-	    } else {
-		valueLen = xmlSecNssX509NameStringRead(&str, &len, 
-					value, sizeof(value), ',', 1);	
-		if(valueLen < 0) {
-		    xmlSecError(XMLSEC_ERRORS_HERE,
-				NULL,
-				"xmlSecNssX509NameStringRead",
-				XMLSEC_ERRORS_R_XMLSEC_FAILED,
-				XMLSEC_ERRORS_NO_MESSAGE);
-		    goto done;
-    		}
-		memcpy(p, value, valueLen);
-		p+=valueLen;
-		if (len > 0)
-		    *p++=',';
-	    } 			
-	} else {
-	    valueLen = 0;
-	}
-	if(len > 0) {
-	    ++str; --len;
-	}	
-    }
-
-    *p = 0;
-    return(retval);
-    
-done:
-    PORT_Free(retval);
-    return (NULL);
-}
-
-static int 
-xmlSecNssX509NameStringRead(xmlSecByte **str, int *strLen, 
-			    xmlSecByte *res, int resLen,
-			    xmlSecByte delim, int ingoreTrailingSpaces) {
-    xmlSecByte *p, *q, *nonSpace; 
-
-    xmlSecAssert2(str != NULL, -1);
-    xmlSecAssert2(strLen != NULL, -1);
-    xmlSecAssert2(res != NULL, -1);
-    
-    p = (*str);
-    nonSpace = q = res;
-    while(((p - (*str)) < (*strLen)) && ((*p) != delim) && ((q - res) < resLen)) { 
-	if((*p) != '\\') {
-	    if(ingoreTrailingSpaces && !isspace(*p)) {
-		nonSpace = q;	
-	    }
-	    *(q++) = *(p++);
-	} else {
-	    ++p;
-	    nonSpace = q;    
-	    if(xmlSecIsHex((*p))) {
-		if((p - (*str) + 1) >= (*strLen)) {
-		    xmlSecError(XMLSEC_ERRORS_HERE,
-				NULL,
-				NULL,
-				XMLSEC_ERRORS_R_INVALID_DATA,
-				"two hex digits expected");
-	    	    return(-1);
-		}
-		*(q++) = xmlSecGetHex(p[0]) * 16 + xmlSecGetHex(p[1]);
-		p += 2;
-	    } else {
-		if(((++p) - (*str)) >= (*strLen)) {
-		    xmlSecError(XMLSEC_ERRORS_HERE,
-				NULL,
-				NULL,
-				XMLSEC_ERRORS_R_INVALID_DATA,
-				"escaped symbol missed");
-		    return(-1);
-		}
-		*(q++) = *(p++); 
-	    }
-	}	    
-    }
-    if(((p - (*str)) < (*strLen)) && ((*p) != delim)) {
-	xmlSecError(XMLSEC_ERRORS_HERE,
-		    NULL,
-		    NULL,
-		    XMLSEC_ERRORS_R_INVALID_SIZE,
-		    "buffer is too small");
-	return(-1);
-    }
-    (*strLen) -= (p - (*str));
-    (*str) = p;
-    return((ingoreTrailingSpaces) ? nonSpace - res + 1 : q - res);
 }
 
 /* code lifted from NSS */
@@ -712,6 +514,77 @@ xmlSecNssNumToItem(SECItem *it, unsigned long ui)
 
     it->len = len;
     PORT_Memcpy(it->data, bb + (sizeof(bb) - len), len);
+}
+
+static int
+xmlSecNssIntegerToItem(
+       const xmlChar* integer ,
+       SECItem *item
+) {
+    xmlSecBn bn ;
+    xmlSecSize i, length ;
+    const xmlSecByte* bnInteger ;
+
+    xmlSecAssert2( integer != NULL, -1 ) ;
+    xmlSecAssert2( item != NULL, -1 ) ;
+
+    if( xmlSecBnInitialize( &bn, 0 ) < 0 ) {
+        xmlSecError(XMLSEC_ERRORS_HERE,
+                       NULL,
+                       "xmlSecBnInitialize",
+                       XMLSEC_ERRORS_R_INVALID_DATA,
+                       XMLSEC_ERRORS_NO_MESSAGE);
+           return -1 ;
+    }
+
+    if( xmlSecBnFromDecString( &bn, integer ) < 0 ) {
+                   xmlSecError(XMLSEC_ERRORS_HERE,
+                               NULL,
+                               "xmlSecBnFromDecString",
+                               XMLSEC_ERRORS_R_INVALID_DATA,
+                               XMLSEC_ERRORS_NO_MESSAGE);
+        xmlSecBnFinalize( &bn ) ;
+        return -1 ;
+    }
+
+    length = xmlSecBnGetSize( &bn ) ;
+    if( length <= 0 ) {
+                   xmlSecError(XMLSEC_ERRORS_HERE,
+                               NULL,
+                               "xmlSecBnGetSize",
+                               XMLSEC_ERRORS_R_INVALID_DATA,
+                               XMLSEC_ERRORS_NO_MESSAGE);
+    }
+
+    bnInteger = xmlSecBnGetData( &bn ) ;
+    if( bnInteger == NULL ) {
+                   xmlSecError(XMLSEC_ERRORS_HERE,
+                               NULL,
+                               "xmlSecBnGetData",
+                               XMLSEC_ERRORS_R_INVALID_DATA,
+                               XMLSEC_ERRORS_NO_MESSAGE ) ;
+        xmlSecBnFinalize( &bn ) ;
+        return -1 ;
+    }
+
+    item->data = ( unsigned char * )PORT_Alloc( length );
+    if( item->data == NULL ) {
+                   xmlSecError(XMLSEC_ERRORS_HERE,
+                               NULL,
+                               "PORT_Alloc",
+                               XMLSEC_ERRORS_R_INVALID_DATA,
+                               XMLSEC_ERRORS_NO_MESSAGE ) ;
+        xmlSecBnFinalize( &bn ) ;
+        return -1 ;
+    }
+
+    item->len = length;
+    for( i = 0 ; i < length ; i ++ )
+        item->data[i] = *( bnInteger + i ) ;
+
+    xmlSecBnFinalize( &bn ) ;
+
+    return 0 ;
 }
 #endif /* XMLSEC_NO_X509 */
 

@@ -3,6 +3,7 @@ NULL =
 xmlsecmscryptoincdir = $(includedir)/xmlsec1/xmlsec/mscrypto
 
 xmlsecmscryptoinc_HEADERS = \
+akmngr.h \
 app.h \
 certkeys.h \
 crypto.h \
