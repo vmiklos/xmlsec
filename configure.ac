@@ -570,12 +570,26 @@ dnl ==========================================================================
 XMLSEC_NO_NSS="1"
 SEAMONKEY_MIN_VERSION="1.0"
 MOZILLA_MIN_VERSION="1.4"
+if test "z$MOZ_FLAVOUR" = "zfirefox" ; then
+    MOZILLA_MIN_VERSION="1.0"
+fi
 NSS_MIN_VERSION="3.11.1"
 NSPR_MIN_VERSION="4.4.1"
 NSS_CFLAGS=""
 NSS_LIBS=""
-NSS_LIBS_LIST="-lnss3 -lsmime3"
-NSPR_LIBS_LIST="-lnspr4 -lplds4 -lplc4"
+
+case $host_os in
+cygwin* | pw32*)
+    NSS_LIBS_LIST="-lnss3 -lsmime3"
+    NSPR_LIBS_LIST="-lnspr4"
+    ;;
+
+*)
+    NSS_LIBS_LIST="-lnss3 -lsmime3"
+    NSPR_LIBS_LIST="-lnspr4 -lplds4 -lplc4"
+    ;;
+esac
+
 NSS_CRYPTO_LIB="$XMLSEC_PACKAGE-nss"
 NSS_FOUND="no"
 NSPR_PACKAGE=mozilla-nspr
@@ -601,6 +615,16 @@ elif test "z$with_nss" = "z" -a "z$with_nspr" = "z" -a "z$with_mozilla_ver" = "z
     dnl		nspr and nss
     dnl We are going to try all options
     dnl
+    if test "z$NSS_FOUND" = "zno" ; then
+        PKG_CHECK_MODULES(NSS, $MOZ_FLAVOUR-nspr >= $MOZILLA_MIN_VERSION $MOZ_FLAVOUR >= $MOZILLA_MIN_VERSION,
+            [NSS_FOUND=yes NSPR_PACKAGE=$MOZ_FLAVOUR-nspr NSS_PACKAGE=$MOZ_FLAVOUR-nss],
+            [NSS_FOUND=no])
+    fi
+    if test "z$NSS_FOUND" = "zno" ; then
+        PKG_CHECK_MODULES(NSS, nss >= 3.9.3 nspr >= 4.8,
+            [NSS_FOUND=yes NSPR_PACKAGE=nspr NSS_PACKAGE=nss],
+            [NSS_FOUND=no])
+    fi
     if test "z$NSS_FOUND" = "zno" ; then
         PKG_CHECK_MODULES(NSS, seamonkey-nspr >= $NSPR_MIN_VERSION seamonkey-nss >= $SEAMONKEY_MIN_VERSION,
     	    [NSS_FOUND=yes NSPR_PACKAGE=seamonkey-nspr NSS_PACKAGE=seamonkey-nss],
@@ -633,8 +657,8 @@ if test "z$NSS_FOUND" = "zno" ; then
         ac_mozilla_name=mozilla-$MOZILLA_MIN_VERSION
     fi
 
-    ac_nss_lib_dir="/usr/lib /usr/lib64 /usr/local/lib /usr/lib/$ac_mozilla_name /usr/local/lib/$ac_mozilla_name"
-    ac_nss_inc_dir="/usr/include /usr/include/mozilla /usr/local/include /usr/local/include/mozilla /usr/include/$ac_mozilla_name /usr/local/include/$ac_mozilla_name"
+    ac_nss_lib_dir="${WORKDIR}/UnpackedTarball/nss/dist/out/lib"
+    ac_nss_inc_dir="${WORKDIR}/UnpackedTarball/nss/dist/out/include ${WORKDIR}/UnpackedTarball/nss/dist/public"
 
     AC_MSG_CHECKING(for nspr libraries >= $NSPR_MIN_VERSION)
     NSPR_INCLUDES_FOUND="no"
@@ -655,21 +679,21 @@ if test "z$NSS_FOUND" = "zno" ; then
 	NSPR_PRINIT_H="$with_nspr/include/prinit.h"
     else
 	for dir in $ac_nss_inc_dir ; do
-    	    if test -f $dir/nspr/prinit.h ; then
+            if test -f $dir/prinit.h ; then
     		dnl do not add -I/usr/include because compiler does it anyway
         	if test "z$dir" = "z/usr/include" ; then
     		    NSPR_CFLAGS=""
     		else
-    		    NSPR_CFLAGS="-I$dir/nspr"
+                    NSPR_CFLAGS="-I$dir"
     		fi
 		NSPR_INCLUDES_FOUND="yes"
-		NSPR_PRINIT_H="$dir/nspr/prinit.h"
+		NSPR_PRINIT_H="$dir/prinit.h"
     		break
     	    fi
 	done
 	
 	for dir in $ac_nss_lib_dir ; do
-    	    if test -f $dir/libnspr4$shrext ; then
+            if test -f $dir/libnspr4.so -o -f $dir/libnspr4.dylib ; then
 		dnl do not add -L/usr/lib because compiler does it anyway
         	if test "z$dir" = "z/usr/lib" ; then
             	    NSPR_LIBS="$NSPR_LIBS_LIST"
@@ -740,7 +764,7 @@ if test "z$NSS_FOUND" = "zno" ; then
         done
        
         for dir in $ac_nss_lib_dir ; do
-    	    if test -f $dir/libnss3$shrext ; then
+            if test -f $dir/libnss3.so -o -f $dir/libnss3.dylib ; then
         	dnl do not add -L/usr/lib because compiler does it anyway
     		if test "z$dir" = "z/usr/lib" ; then
         	    NSS_LIBS="$NSS_LIBS_LIST"
