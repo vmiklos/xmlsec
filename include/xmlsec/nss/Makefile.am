@@ -10,6 +10,9 @@ bignum.h \
 keysstore.h \
 pkikeys.h \
 x509.h \
+akmngr.h \
+tokens.h \
+ciphers.h \
 $(NULL)
 
 install-exec-hook:

@@ -226,6 +226,9 @@ XMLSEC_OPENSSL_OBJS_A = \
 	$(XMLSEC_OPENSSL_INTDIR_A)\x509vfy.obj 
 
 XMLSEC_NSS_OBJS = \
+	$(XMLSEC_NSS_INTDIR)\akmngr.obj\
+	$(XMLSEC_NSS_INTDIR)\keywrapers.obj\
+	$(XMLSEC_NSS_INTDIR)\tokens.obj\
 	$(XMLSEC_NSS_INTDIR)\app.obj\
 	$(XMLSEC_NSS_INTDIR)\bignum.obj\
 	$(XMLSEC_NSS_INTDIR)\ciphers.obj \
@@ -261,6 +264,7 @@ XMLSEC_NSS_OBJS_A = \
 	$(XMLSEC_NSS_INTDIR_A)\strings.obj
 
 XMLSEC_MSCRYPTO_OBJS = \
+	$(XMLSEC_MSCRYPTO_INTDIR)\akmngr.obj\
 	$(XMLSEC_MSCRYPTO_INTDIR)\app.obj\
 	$(XMLSEC_MSCRYPTO_INTDIR)\crypto.obj \
 	$(XMLSEC_MSCRYPTO_INTDIR)\ciphers.obj \
