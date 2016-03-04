@@ -200,13 +200,27 @@ xmlSecNssX509StoreVerify(xmlSecKeyDataStorePtr store, CERTCertList* certs,
 	    continue;
 	}
 
-	status = CERT_VerifyCertificate(CERT_GetDefaultCertDB(), 
-					cert, PR_FALSE, 
-					(SECCertificateUsage)0,
-                			timeboundary , NULL, NULL, NULL);
-	if (status == SECSuccess) {
-	    break;
-	}
+
+	/*
+      JL: OpenOffice.org implements its own certificate verification routine. 
+      The goal is to separate validation of the signature
+      and the certificate. For example, OOo could show that the document signature is valid,
+      but the certificate could not be verified. If we do not prevent the verification of
+      the certificate by libxmlsec and the verification fails, then the XML signature may not be 
+      verified. This would happen, for example, if the root certificate is not installed.
+      
+      status = CERT_VerifyCertificate(CERT_GetDefaultCertDB(), 
+          cert, PR_FALSE, 
+          (SECCertificateUsage)0,
+          timeboundary , NULL, NULL, NULL);
+      if (status == SECSuccess) {
+         break;
+      }
+	 
+    */
+	status = SECSuccess;
+	break;
+
     }
 
     if (status == SECSuccess) {
