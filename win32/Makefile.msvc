@@ -311,6 +311,10 @@ CFLAGS 			= $(CFLAGS) /D "HAVE_STDIO_H" /D "HAVE_STDLIB_H"
 CFLAGS 			= $(CFLAGS) /D "HAVE_STRING_H" /D "HAVE_CTYPE_H"
 CFLAGS 			= $(CFLAGS) /D "HAVE_MALLOC_H" /D "HAVE_MEMORY_H"
 CFLAGS 			= $(CFLAGS) /D "XMLSEC_NO_GOST" /D "XMLSEC_NO_GOST2012" 
+CFLAGS 			= $(CFLAGS) -arch:SSE $(SOLARINC) -I$(WORKDIR)\UnpackedTarball\xml2\include -I$(WORKDIR)/UnpackedTarball/icu/source/i18n -I$(WORKDIR)/UnpackedTarball/icu/source/common
+!if "$(MSVC_USE_DEBUG_RUNTIME)" != ""
+CFLAGS 			= $(CFLAGS) /MDd
+!endif
 
 !if "$(UNICODE)" == "1"
 CFLAGS 			= $(CFLAGS) /D "UNICODE" /D "_UNICODE"
