@@ -1126,6 +1126,7 @@ static xmlSecTransformKlass xmlSecNssKWAes256Klass = {
     NULL,					/* void* reserved1; */
 };
 
+#if 0
 /** 
  * xmlSecNssTransformKWAes128GetKlass:
  *
@@ -1160,6 +1161,7 @@ xmlSecTransformId
 xmlSecNssTransformKWAes256GetKlass(void) {
     return(&xmlSecNssKWAes256Klass);
 }
+#endif
 
 #endif /* XMLSEC_NO_AES */
 
@@ -1197,6 +1199,7 @@ static xmlSecTransformKlass xmlSecNssKWDes3Klass = {
     NULL,					/* void* reserved1; */
 };
 
+#if 0
 /** 
  * xmlSecNssTransformKWDes3GetKlass:
  * 
@@ -1208,6 +1211,7 @@ xmlSecTransformId
 xmlSecNssTransformKWDes3GetKlass(void) {
     return(&xmlSecNssKWDes3Klass);
 }
+#endif
 
 #endif /* XMLSEC_NO_DES */
 
