@@ -83,6 +83,14 @@ xmlSecNssSignatureCheckId(xmlSecTransformPtr transform) {
     }
 #endif /* XMLSEC_NO_DSA */
 
+#ifndef XMLSEC_NO_ECDSA
+#ifndef XMLSEC_NO_SHA256
+    if(xmlSecTransformCheckId(transform, xmlSecNssTransformEcdsaSha256Id)) {
+        return(1);
+    }
+#endif /* XMLSEC_NO_SHA256 */
+#endif /* XMLSEC_NO_ECDSA */
+
 #ifndef XMLSEC_NO_RSA
 
 #ifndef XMLSEC_NO_MD5
@@ -138,6 +146,16 @@ xmlSecNssSignatureInitialize(xmlSecTransformPtr transform) {
         ctx->alg        = SEC_OID_ANSIX9_DSA_SIGNATURE_WITH_SHA1_DIGEST;
     } else
 #endif /* XMLSEC_NO_DSA */
+
+#ifndef XMLSEC_NO_ECDSA
+#ifndef XMLSEC_NO_SHA256
+    if(xmlSecTransformCheckId(transform, xmlSecNssTransformEcdsaSha256Id)) {
+        ctx->keyId = xmlSecNssKeyDataEcdsaId;
+        /* This creates a signature which is ASN1 encoded */
+        ctx->alg = SEC_OID_ANSIX962_ECDSA_SHA256_SIGNATURE;
+    } else
+#endif /* XMLSEC_NO_SHA256 */
+#endif /* XMLSEC_NO_ECDSA */
 
 #ifndef XMLSEC_NO_RSA
 
@@ -331,16 +349,16 @@ xmlSecNssSignatureVerify(xmlSecTransformPtr transform,
     signature.data = (unsigned char *)data;
     signature.len = dataSize;
 
-    if(ctx->alg == SEC_OID_ANSIX9_DSA_SIGNATURE_WITH_SHA1_DIGEST) {
+    if(ctx->alg == SEC_OID_ANSIX9_DSA_SIGNATURE_WITH_SHA1_DIGEST || ctx->alg == SEC_OID_ANSIX962_ECDSA_SHA256_SIGNATURE) {
         /* This creates a signature which is ASN1 encoded */
         SECItem   signatureDer;
         SECStatus statusDer;
 
-        statusDer = DSAU_EncodeDerSig(&signatureDer, &signature);
+        statusDer = DSAU_EncodeDerSigWithLen(&signatureDer, &signature, signature.len);
         if(statusDer != SECSuccess) {
             xmlSecError(XMLSEC_ERRORS_HERE,
                     xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
-                    "DSAU_EncodeDerSig",
+                    "DSAU_EncodeDerSigWithLen",
                     XMLSEC_ERRORS_R_CRYPTO_FAILED,
                     "error code=%d", 
                     PORT_GetError());
@@ -484,20 +502,48 @@ xmlSecNssSignatureExecute(xmlSecTransformPtr transform, int last, xmlSecTransfor
                 return(-1);
             }
 
-            if(ctx->alg == SEC_OID_ANSIX9_DSA_SIGNATURE_WITH_SHA1_DIGEST) {
+            if(ctx->alg == SEC_OID_ANSIX9_DSA_SIGNATURE_WITH_SHA1_DIGEST || ctx->alg == SEC_OID_ANSIX962_ECDSA_SHA256_SIGNATURE) {
                 /* This creates a signature which is ASN1 encoded */
                 SECItem * signatureClr;
 
-                signatureClr = DSAU_DecodeDerSig(&signature);
-                if(signatureClr == NULL) {
-                    xmlSecError(XMLSEC_ERRORS_HERE,
-                        xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
-                        "DSAU_EncodeDerSig",
-                        XMLSEC_ERRORS_R_CRYPTO_FAILED,
-                        "error code=%d", 
-                        PORT_GetError());
-                    SECITEM_FreeItem(&signature, PR_FALSE);
-                    return(-1);
+                if(ctx->alg == SEC_OID_ANSIX9_DSA_SIGNATURE_WITH_SHA1_DIGEST) {
+                    signatureClr = DSAU_DecodeDerSig(&signature);
+                    if(signatureClr == NULL) {
+                        xmlSecError(XMLSEC_ERRORS_HERE,
+                            xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
+                            "DSAU_DecodeDerSig",
+                            XMLSEC_ERRORS_R_CRYPTO_FAILED,
+                            "error code=%d",
+                            PORT_GetError());
+                        SECITEM_FreeItem(&signature, PR_FALSE);
+                        return(-1);
+                    }
+                } else {
+                    /* In the ECDSA case the signature length depends on the
+                     * key parameters. */
+                    int signatureSize = PK11_SignatureLen(ctx->u.sig.privkey);
+                    if(signatureSize < 1) {
+                        xmlSecError(XMLSEC_ERRORS_HERE,
+                            xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
+                            "PK11_SignatureLen",
+                            XMLSEC_ERRORS_R_CRYPTO_FAILED,
+                            "error code=%d",
+                            PORT_GetError());
+                        SECITEM_FreeItem(&signature, PR_FALSE);
+                        return(-1);
+                    }
+
+                    signatureClr = DSAU_DecodeDerSigToLen(&signature, signatureSize);
+                    if(signatureClr == NULL) {
+                        xmlSecError(XMLSEC_ERRORS_HERE,
+                            xmlSecErrorsSafeString(xmlSecTransformGetName(transform)),
+                            "DSAU_DecodeDerSigToLen",
+                            XMLSEC_ERRORS_R_CRYPTO_FAILED,
+                            "error code=%d",
+                            PORT_GetError());
+                        SECITEM_FreeItem(&signature, PR_FALSE);
+                        return(-1);
+                    }
                 }
 
                 ret = xmlSecBufferSetData(out, signatureClr->data, signatureClr->len);
@@ -597,6 +643,56 @@ xmlSecNssTransformDsaSha1GetKlass(void) {
 }
 
 #endif /* XMLSEC_NO_DSA */
+
+#ifndef XMLSEC_NO_ECDSA
+#ifndef XMLSEC_NO_SHA256
+/****************************************************************************
+ *
+ * ECDSA-SHA256 signature transform
+ *
+ ***************************************************************************/
+
+static xmlSecTransformKlass xmlSecNssEcdsaSha256Klass = {
+    /* klass/object sizes */
+    sizeof(xmlSecTransformKlass),               /* xmlSecSize klassSize */
+    xmlSecNssSignatureSize,                     /* xmlSecSize objSize */
+
+    xmlSecNameEcdsaSha256,                      /* const xmlChar* name; */
+    xmlSecHrefEcdsaSha256,                      /* const xmlChar* href; */
+    xmlSecTransformUsageSignatureMethod,        /* xmlSecTransformUsage usage; */
+
+    xmlSecNssSignatureInitialize,               /* xmlSecTransformInitializeMethod initialize; */
+    xmlSecNssSignatureFinalize,                 /* xmlSecTransformFinalizeMethod finalize; */
+    NULL,                                       /* xmlSecTransformNodeReadMethod readNode; */
+    NULL,                                       /* xmlSecTransformNodeWriteMethod writeNode; */
+    xmlSecNssSignatureSetKeyReq,                /* xmlSecTransformSetKeyReqMethod setKeyReq; */
+    xmlSecNssSignatureSetKey,                   /* xmlSecTransformSetKeyMethod setKey; */
+    xmlSecNssSignatureVerify,                   /* xmlSecTransformVerifyMethod verify; */
+    xmlSecTransformDefaultGetDataType,          /* xmlSecTransformGetDataTypeMethod getDataType; */
+    xmlSecTransformDefaultPushBin,              /* xmlSecTransformPushBinMethod pushBin; */
+    xmlSecTransformDefaultPopBin,               /* xmlSecTransformPopBinMethod popBin; */
+    NULL,                                       /* xmlSecTransformPushXmlMethod pushXml; */
+    NULL,                                       /* xmlSecTransformPopXmlMethod popXml; */
+    xmlSecNssSignatureExecute,                  /* xmlSecTransformExecuteMethod execute; */
+
+    NULL,                                       /* void* reserved0; */
+    NULL,                                       /* void* reserved1; */
+};
+
+/**
+ * xmlSecNssTransformEcdsaSha256GetKlass:
+ *
+ * The ECDSA-SHA256 signature transform klass.
+ *
+ * Returns: ECDSA-SHA256 signature transform klass.
+ */
+xmlSecTransformId
+xmlSecNssTransformEcdsaSha256GetKlass(void) {
+    return(&xmlSecNssEcdsaSha256Klass);
+}
+
+#endif /* XMLSEC_NO_SHA256 */
+#endif /* XMLSEC_NO_ECDSA */
 
 #ifndef XMLSEC_NO_RSA
 
