@@ -15,5 +15,21 @@ install:
 - sudo apt-get install libgcrypt11 libgcrypt11-dev
 # install gnutls libraries
 - sudo apt-get install libgnutls28 libgnutls-dev
+# install sanitizer toolchain
+- sudo apt-get install clang-7
 script:
 - mkdir build && cd build && ../autogen.sh --enable-werror && make && make check
+matrix:
+  include:
+  - name: linux gcc release
+  - name: linux clang-7 sanitizers
+    env:
+    - ASAN_OPTIONS=handle_ioctl=1:detect_leaks=1:allow_user_segv_handler=1:use_sigaltstack=0:detect_deadlocks=1:intercept_tls_get_addr=1:check_initialization_order=1:detect_stack_use_after_return=1:strict_init_order=1:detect_invalid_pointer_pairs=1
+    - LSAN_OPTIONS=print_suppressions=0:report_objects=1
+    - UBSAN_OPTIONS=print_stacktrace=1
+    - CC="clang-7 -fno-sanitize-recover=undefined,integer -fsanitize=address -fsanitize=undefined -fsanitize=local-bounds"
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-trusty-7
